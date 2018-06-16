@@ -3,61 +3,101 @@
 
 import data.finsupp data.equiv
 
-class algebra (R : out_param Type*) (A : Type*)
-  [out_param $ comm_ring R] extends comm_ring A :=
+universes u v w
+
+class algebra (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] :=
 (f : R → A) [hom : is_ring_hom f]
 
-instance algebra.to_is_ring_hom (R : out_param Type*) (A : Type*)
-  [out_param $ comm_ring R] [algebra R A] : is_ring_hom (algebra.f A) :=
+instance algebra.to_is_ring_hom (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] : is_ring_hom (algebra.f A) :=
 algebra.hom A
 
-instance algebra.to_module (R : out_param Type*) (A : Type*)
-  [out_param $ comm_ring R] [algebra R A] : module R A :=
-{ smul := λ r x, algebra.f A r * x,
-  smul_add := λ r x y, mul_add (algebra.f A r) x y,
-  add_smul := λ r s x, show algebra.f A (r + s) * x
-      = algebra.f A r * x + algebra.f A s * x,
-    by rw [is_ring_hom.map_add (algebra.f A), add_mul],
-  mul_smul := λ r s x, show algebra.f A (r * s) * x
-      = algebra.f A r * (algebra.f A s * x),
-    by rw [is_ring_hom.map_mul (algebra.f A), mul_assoc],
-  one_smul := λ x, show algebra.f A 1 * x = x,
-    by rw [is_ring_hom.map_one (algebra.f A), one_mul] }
+instance algebra.to_has_coe (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] : has_coe R A :=
+⟨algebra.f A⟩
 
-theorem algebra.smul_def (R : out_param Type*) (A : Type*)
-  [out_param $ comm_ring R] [algebra R A] (c : R) (x : A) :
+instance algebra.to_is_ring_hom' (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] : is_ring_hom (coe : R → A) :=
+algebra.hom A
+
+@[simp] lemma algebra.coe_add (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  (r s : R) : ((r+s:R):A) = r + s :=
+is_ring_hom.map_add _
+
+@[simp] lemma algebra.coe_zero (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] :
+  ((0:R):A) = 0 :=
+is_ring_hom.map_zero _
+
+@[simp] lemma algebra.coe_neg (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  (r : R) : ((-r:R):A) = -r :=
+is_ring_hom.map_neg _
+
+@[simp] lemma algebra.coe_sub (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  (r s : R) : ((r-s:R):A) = r - s :=
+is_ring_hom.map_sub _
+
+@[simp] lemma algebra.coe_mul (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  (r s : R) : ((r*s:R):A) = r * s :=
+is_ring_hom.map_mul _
+
+@[simp] lemma algebra.coe_one (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] :
+  ((1:R):A) = 1 :=
+is_ring_hom.map_one _
+
+instance algebra.to_module (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] : module R A :=
+{ smul := λ r x, r * x,
+  smul_add := λ r x y, mul_add r x y,
+  add_smul := λ r s x, by simp [add_mul],
+  mul_smul := λ r s x, by simp [mul_assoc],
+  one_smul := λ x, by simp [one_mul] }
+
+theorem algebra.smul_def (R : out_param $ Type u) (A : Type v)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A] (c : R) (x : A) :
   c • x = algebra.f A c * x := rfl
 
-class is_alg_hom {R : out_param Type*} {A : Type*} {B : Type*}
-  [out_param $ comm_ring R] [algebra R A] [algebra R B]
+class is_alg_hom {R : out_param $ Type u} {A : Type v} {B : Type w}
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  [comm_ring B] [algebra R B]
   (φ : A → B) extends is_ring_hom φ : Prop :=
 (commute : ∀ r, φ (algebra.f A r) = algebra.f B r)
 
-def alg_hom {R : out_param Type*} (A : Type*) (B : Type*)
-  [out_param $ comm_ring R] [algebra R A] [algebra R B] :=
+def alg_hom {R : out_param $ Type u} (A : Type v) (B : Type w)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  [comm_ring B] [algebra R B] :=
 { φ : A → B // is_alg_hom φ }
 
-instance alg_hom.to_is_alg_hom {R : out_param Type*} (A : Type*) (B : Type*)
-  [out_param $ comm_ring R] [algebra R A] [algebra R B]
+instance alg_hom.to_is_alg_hom {R : out_param $ Type u} (A : Type v) (B : Type w)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  [comm_ring B] [algebra R B]
   (φ : alg_hom A B) : is_alg_hom φ.val :=
 φ.property
 
-instance alg_hom.to_is_ring_hom {R : out_param Type*} (A : Type*) (B : Type*)
-  [out_param $ comm_ring R] [algebra R A] [algebra R B]
+instance alg_hom.to_is_ring_hom {R : out_param $ Type u} (A : Type v) (B : Type w)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  [comm_ring B] [algebra R B]
   (φ : alg_hom A B) : is_ring_hom φ.val :=
 by apply_instance
 
-instance alg_hom.has_coe_to_fun {R : out_param Type*} (A : Type*) (B : Type*)
-  [out_param $ comm_ring R] [algebra R A] [algebra R B] :
+instance alg_hom.has_coe_to_fun {R : out_param $ Type u} (A : Type v) (B : Type w)
+  [out_param $ comm_ring R] [comm_ring A] [algebra R A]
+  [comm_ring B] [algebra R B] :
   has_coe_to_fun (alg_hom A B) :=
 ⟨_, λ φ, φ.1⟩
 
-instance comm_ring.to_algebra (R : Type*) [comm_ring R] : algebra R R :=
+def comm_ring.to_algebra (R : Type u) [comm_ring R] : algebra R R :=
 { f := id }
 
-variables (R : Type*) [decidable_eq R] [comm_ring R]
+variables (R : Type u) [decidable_eq R] [comm_ring R]
 
-def polynomial : Type* := ℕ →₀ R
+def polynomial : Type u := ℕ →₀ R
 
 instance polynomial.comm_ring : comm_ring (polynomial R) :=
 finsupp.to_comm_ring
@@ -69,10 +109,11 @@ instance polynomial.algebra : algebra R (polynomial R) :=
     map_mul := λ x y, show finsupp.single (0 + 0) (x * y) = _, from finsupp.single_mul_single.symm,
     map_one := rfl } }
 
-def polynomial.eval (A : Type*) [algebra R A] (x : A) : polynomial R → A :=
-λ f, f.sum $ λ n c, c • x^n
+def polynomial.eval (A : Type v) [comm_ring A] [algebra R A]
+  (x : A) (f : polynomial R) : A :=
+f.sum $ λ n c, c • x^n
 
-instance polynomial.eval.is_alg_hom (A : Type*) [algebra R A] (r : A) :
+instance polynomial.eval.is_alg_hom (A : Type v) [comm_ring A] [algebra R A] (r : A) :
   is_alg_hom (polynomial.eval R A r) :=
 have H1 : ∀ n c, finsupp.sum (finsupp.single n c) (λ (n : ℕ) (c : R), c • r ^ n) = c • r ^ n,
   from λ n c, finsupp.sum_single_index zero_smul,
@@ -135,7 +176,7 @@ have Hp : ∀ f g : polynomial R, finsupp.sum (f + g) (λ (n : ℕ) (c : R), c �
     rw [finsupp.sum_single_index];
     [apply mul_one, { change (0:R) • (1:A) = 0, apply zero_smul }]}
 
-def polynomial.UMP (A : Type*) [algebra R A] :
+def polynomial.UMP (A : Type v) [comm_ring A] [algebra R A] :
   A ≃ alg_hom (polynomial R) A :=
 { to_fun := λ r, ⟨polynomial.eval R A r, by apply_instance⟩,
   inv_fun := λ φ, φ.1 (finsupp.single 1 1),
@@ -167,7 +208,7 @@ def polynomial.UMP (A : Type*) [algebra R A] :
       { intros, apply add_smul }
     end }
 
-theorem polynomial.UMP.commute (A : Type*) [algebra R A] (x : A) :
+theorem polynomial.UMP.commute (A : Type v) [comm_ring A] [algebra R A] (x : A) :
   polynomial.UMP R A x (finsupp.single 1 1) = x :=
 (polynomial.UMP R A).inverse_apply_apply x
 
