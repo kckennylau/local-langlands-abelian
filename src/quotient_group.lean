@@ -1,6 +1,8 @@
 import group_theory.coset
 
-universe u
+universes u v
+
+set_option eqn_compiler.zeta true
 
 def left_cosets.mul {G : Type u} [group G] (N : set G) [normal_subgroup N] :
   left_cosets N → left_cosets N → left_cosets N :=
@@ -46,3 +48,19 @@ quotient_group.group N
 instance quotient_group.is_group_hom {G : Type u} [group G] (N : set G) [normal_subgroup N] :
   is_group_hom (@quotient.mk _ (left_rel N) : G → left_cosets N) :=
 ⟨λ x y, rfl⟩
+
+def quotient_group.lift {G : Type u} {H : Type v} [group G] [group H]
+  (N : set G) [normal_subgroup N] (f : G → H) [is_group_hom f]
+  (hf : ∀ x ∈ N, f x = 1) (x : left_cosets N) : H :=
+@quotient.lift_on _ _ (left_rel N) x f $ λ x y,
+assume h : x⁻¹ * y ∈ N,
+calc  f x = f x * f (x⁻¹ * y) : by simp [hf _ h]
+      ... = f y : by simp [is_group_hom.mul f, is_group_hom.inv f]
+
+def quotient_group.lift.is_group_hom {G : Type u} {H : Type v} [group G] [group H]
+  (N : set G) [normal_subgroup N] (f : G → H) [is_group_hom f]
+  (hf : ∀ x ∈ N, f x = 1) :
+  is_group_hom (quotient_group.lift N f hf) :=
+⟨λ x y, by letI := left_rel N; apply quotient.induction_on₂ x y; intros m n;
+  change f (m * n) = f m * f n;
+  from is_group_hom.mul f m n⟩

@@ -197,6 +197,16 @@ instance Gal.intermediate.subgroup (α : Type u) (β : Type v)
     by symmetry; rw ← equiv.apply_eq_iff_eq_inverse_apply;
       from H1 x hx }
 
+instance Gal.normal (α : Type u) (β : Type v)
+  [field α] [field β] [field_extension α β]
+  (E : finite_invariant_intermediate_extension α β) :
+  normal_subgroup (Gal.intermediate α β E.S) :=
+{ normal := λ f hf g x hx,
+    show g.to_equiv.trans (f.to_equiv.trans g.to_equiv.symm) x = x,
+    from have _ := E.proj_commutes g ⟨x, hx⟩,
+    by simp at this ⊢; rw [← this, hf, this];
+      [simp, from (((E.proj g).to_equiv) ⟨x, hx⟩).2] }
+
 instance Gal.intermediate.topological_group (α : Type u) (β : Type v)
   [field α] [field β] [field_extension α β]
   (E : set β) [is_intermediate_field α β E] :

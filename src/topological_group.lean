@@ -2,6 +2,7 @@ import analysis.topology.topological_structures
 import analysis.topology.continuity
 import algebra.pi_instances
 import group_theory.coset
+import .quotient_group
 
 universes u v
 
@@ -91,8 +92,8 @@ def topological_group.coinduced {α : Type u} {β : Type v}
   (f : α → β) [is_group_hom f] (hf1 : function.surjective f)
   (hf2 : ∀ S, is_open S → is_open (f ⁻¹' (f '' S))) :
   topological_group β :=
-by letI := topological_space.coinduced f t.to_topological_space; from
 { continuous_mul :=
+  by letI := topological_space.coinduced f t.to_topological_space; from
   have @prod.topological_space β β
         (@topological_space.coinduced α β f _)
         (@topological_space.coinduced α β f _)
@@ -123,10 +124,12 @@ by letI := topological_space.coinduced f t.to_topological_space; from
     (show continuous (λ p : α × α, f p.1 * f p.2),
     by rw H1; from continuous_mul'.comp continuous_coinduced_rng),
   continuous_inv := continuous_coinduced_dom $
+    by letI := topological_space.coinduced f t.to_topological_space; from
     have H : (λ p, p⁻¹) ∘ f = f ∘ (λ p, p⁻¹),
       from funext $ λ _, eq.symm $ is_group_hom.inv f _,
     show continuous ((λ p, p⁻¹) ∘ f),
-    by rw H; from continuous_inv.comp continuous_coinduced_rng }
+    by rw H; from continuous_inv.comp continuous_coinduced_rng,
+  .. topological_space.coinduced f t.to_topological_space }
 
 class topological_field (α : Type u)
   extends topological_space α, field α, topological_ring α :=
@@ -191,3 +194,23 @@ instance topological_group.closure.normal_subgroup
     ⟨continuous_iff_is_closed.1 continuous_conj _ hs1,
     λ z hz, @hs2 (g * z * g⁻¹) $
       normal_subgroup.normal _ hz _⟩ }
+
+set_option eqn_compiler.zeta true
+
+instance quotient_group.topological_group (G : Type u)
+  [topological_group G] (N : set G) [normal_subgroup N] :
+  topological_group (left_cosets N) :=
+by letI := left_rel N; from
+topological_group.coinduced quotient.mk quotient.exists_rep (λ S hs,
+have (⋃ x : {x // ⟦x⟧ = 1}, (λ y, x.1 * y) ⁻¹' S)
+    = quotient.mk ⁻¹' (quotient.mk '' S),
+  from set.ext $ λ z,
+  ⟨λ ⟨S, ⟨⟨g, h1⟩, rfl⟩, h2⟩, ⟨g * z, h2,
+    by rw [is_group_hom.mul quotient.mk, h1, one_mul];
+    from quotient_group.is_group_hom _⟩,
+  λ ⟨g, h1, h2⟩, ⟨_, ⟨⟨g * z⁻¹,
+    by rw [is_group_hom.mul quotient.mk, h2, is_group_hom.inv quotient.mk, mul_inv_self];
+    repeat { from quotient_group.is_group_hom _ }⟩, rfl⟩,
+    by simp [h1]⟩⟩,
+this ▸ is_open_Union $ λ x : {x // ⟦x⟧ = 1},
+continuous_mul continuous_const continuous_id _ hs)

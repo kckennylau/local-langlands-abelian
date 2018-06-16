@@ -1,3 +1,6 @@
+-- Hausdorff abelianization, i.e.
+-- quotient by the closure of the commutator
+
 import group_theory.coset
 import .topological_group
 import .quotient_group
@@ -5,6 +8,12 @@ import .quotient_group
 universes u v
 
 set_option eqn_compiler.zeta true
+
+theorem list.prod_map {G : Type u} {H : Type v} [group G] [group H]
+  (f : G → H) [is_group_hom f] {L : list G} :
+  (L.map f).prod = f L.prod :=
+list.rec_on L (eq.symm $ is_group_hom.one f) $ λ hd tl ih,
+by simp [ih, is_group_hom.mul f]
 
 def commutator_subgroup (G : Type u) [group G] (S : set G) : set G :=
 { z | ∃ L : list G, (∀ x ∈ L, ∃ p ∈ S, ∃ q ∈ S, x = p * q * p⁻¹ * q⁻¹) ∧ L.prod = z }
@@ -35,155 +44,53 @@ instance commutator_subgroup.normal_subgroup
     by rw ← h2; from list.rec_on L (by simp) (λ hd tl ih,
       by rw [list.map_cons, list.prod_cons, ih]; simp [mul_assoc])⟩ }
 
-inductive abelianization.rel (G : Type u) [group G] : G → G → Prop
-| basic : ∀ x y z w, abelianization.rel (x * y * z * w) (x * z * y * w)
-
-def abelianization (G : Type u) [group G] : Type u :=
-quot (abelianization.rel G)
-
-def abelianization.mul (G : Type u) [group G] :
-  abelianization G → abelianization G → abelianization G :=
-begin
-  refine quot.lift (λ x, quot.lift (λ y, quot.mk (rel G) (x * y)) _) _,
-  { intros m n h,
-    cases h with m n p q,
-    calc  quot.mk (rel G) (x * ((m * n * p) * q))
-        = quot.mk (rel G) (x * m * n * p * q) : by simp [mul_assoc]
-    ... = quot.mk (rel G) (x * m * p * n * q) : quot.sound ⟨_, _, _, _⟩
-    ... = quot.mk (rel G) (x * ((m * p * n) * q)) : by simp [mul_assoc] },
-  { intros m n h,
-    apply funext,
-    apply quot.ind,
-    intro x,
-    cases h with m n p q,
-    calc  quot.mk (rel G) (m * n * p * q * x)
-        = quot.mk (rel G) (m * n * p * (q * x)) : by simp [mul_assoc]
-    ... = quot.mk (rel G) (m * p * n * (q * x)) : quot.sound ⟨_, _, _, _⟩
-    ... = quot.mk (rel G) (m * p * n * q * x) : by simp [mul_assoc] }
-end
-
-def abelianization.inv (G : Type u) [group G] :
-  abelianization G → abelianization G :=
-begin
-  refine quot.lift (λ x, quot.mk _ (x⁻¹)) _,
-  intros m n h,
-  cases h with m n p q,
-  calc  quot.mk (rel G) (m * n * p * q)⁻¹
-      = quot.mk (rel G) (q⁻¹ * p⁻¹ * n⁻¹ * m⁻¹) : by simp [mul_assoc]
-  ... = quot.mk (rel G) (q⁻¹ * n⁻¹ * p⁻¹ * m⁻¹) : quot.sound ⟨_, _, _, _⟩
-  ... = quot.mk (rel G) (m * p * n * q)⁻¹ : by simp [mul_assoc]
-end
-
-instance abelianization.comm_group (G : Type u) [group G] :
-  comm_group (abelianization G) :=
-{ mul := abelianization.mul G,
-  mul_assoc := by repeat { refine quot.ind (λ x, _) }; simp [abelianization.mul, mul_assoc],
-  one := quot.mk _ 1,
-  one_mul := by refine quot.ind (λ x, _); simp [abelianization.mul],
-  mul_one := by refine quot.ind (λ x, _); change quot.mk _ (x * 1) = _; congr; apply mul_one,
-  inv := abelianization.inv G,
-  mul_left_inv := by refine quot.ind (λ x, _); simp [abelianization.mul, abelianization.inv]; refl,
-  mul_comm := by refine quot.ind (λ x, _); refine quot.ind (λ y, _);
-    change quot.mk _ (x * y) = quot.mk _ (y * x);
-    suffices : quot.mk (rel G) (1 * x * y * 1) = quot.mk (rel G) (1 * y * x * 1);
-    [simpa, from quot.sound ⟨_, _, _, _⟩] }
-
-instance abelianization.comm_group' (G : Type u) [group G] :
-  comm_group (quot (rel G)) :=
-abelianization.comm_group G
-
-instance abelianization.is_group_hom (G : Type u) [group G] :
-  is_group_hom (quot.mk (rel G) : G → abelianization G) :=
-⟨λ x y, rfl⟩
-
-instance abelianization.topological_space (G : Type u)
-  [t : topological_group G] : topological_space (abelianization G) :=
-topological_space.coinduced (quot.mk _) t.to_topological_space
-
-instance abelianization.topological_group (G : Type u) [topological_group G] :
-  topological_group (abelianization G) :=
-topological_group.coinduced (quot.mk (rel G)) quot.exists_rep $ λ S hs,
-have (⋃ x : { x // quot.mk (rel G) x = 1}, (λ y, x.1 * y) ⁻¹' S)
-    = quot.mk (rel G) ⁻¹' (quot.mk (rel G) '' S),
-  from set.ext $ λ z,
-  ⟨λ ⟨S, ⟨⟨g, h1⟩, rfl⟩, h2⟩, ⟨g * z, h2, by simp [is_group_hom.mul (quot.mk (rel G)), h1]⟩,
-  λ ⟨g, h1, h2⟩, ⟨_, ⟨⟨g * z⁻¹, by simp [is_group_hom.mul (quot.mk (rel G)), is_group_hom.inv (quot.mk (rel G)), h2]⟩, rfl⟩, by simp [h1]⟩⟩,
-this ▸ is_open_Union $ λ x : {x // quot.mk (rel G) x = 1},
-continuous_mul continuous_const continuous_id _ hs
-
 def Hausdorff_abelianization (G : Type u) [topological_group G] : Type u :=
-left_cosets (closure ({1} : set (abelianization G)))
+left_cosets (closure (commutator_subgroup G set.univ))
 
-instance Hausdorff_abelianization.setoid (G : Type u)
-  [topological_group G] : setoid (abelianization G) :=
-left_rel (closure {1})
+def Hausdorff_abelianization.setoid (G : Type u)
+  [topological_group G] : setoid G :=
+left_rel (closure (commutator_subgroup G set.univ))
+
+local attribute [instance] Hausdorff_abelianization.setoid
 
 instance Hausdorff_abelianization.comm_group (G : Type u)
   [topological_group G] : comm_group (Hausdorff_abelianization G) :=
 { mul_comm := λ x y, quotient.induction_on₂ x y $ λ m n,
-    show ⟦m * n⟧ = ⟦n * m⟧, by rw mul_comm,
+    quotient.sound $ subset_closure ⟨[n⁻¹*m⁻¹*n*m],
+      by simp; refine ⟨n⁻¹, m⁻¹, _⟩; simp,
+      by simp [mul_assoc]⟩,
   .. quotient_group.group _ }
-
-instance Hausdorff_abelianization.topological_space (G : Type u)
-  [topological_group G] : topological_space (Hausdorff_abelianization G) :=
-topological_space.coinduced quotient.mk (abelianization.topological_space G)
 
 instance Hausdorff_abelianization.topological_group (G : Type u)
   [topological_group G] : topological_group (Hausdorff_abelianization G) :=
-topological_group.coinduced quotient.mk quotient.exists_rep (λ S hs,
-have (⋃ x : {x // ⟦x⟧ = 1}, (λ y, x.1 * y) ⁻¹' S)
-    = quotient.mk ⁻¹' (quotient.mk '' S),
-  from set.ext $ λ z,
-  ⟨λ ⟨S, ⟨⟨g, h1⟩, rfl⟩, h2⟩, ⟨g * z, h2,
-    by rw [is_group_hom.mul quotient.mk, h1, one_mul];
-    from quotient_group.is_group_hom _⟩,
-  λ ⟨g, h1, h2⟩, ⟨_, ⟨⟨g * z⁻¹,
-    by rw [is_group_hom.mul quotient.mk, h2, is_group_hom.inv quotient.mk, mul_inv_self];
-    repeat { from quotient_group.is_group_hom _ }⟩, rfl⟩,
-    by simp [h1]⟩⟩,
-this ▸ is_open_Union $ λ x : {x // ⟦x⟧ = 1},
-continuous_mul continuous_const continuous_id _ hs)
+quotient_group.topological_group _ _
 
-def abelianization.induced {G : Type u} {H : Type v}
-  [group G] [group H] (f : G → H) [is_group_hom f]
-  (x : abelianization G) : abelianization H :=
-quot.lift_on x (quot.mk (rel H) ∘ f) $ λ _ _ h,
-by cases h with p q r s; apply quot.sound;
-change rel H (f (p*q*r*s)) (f (p*r*q*s));
-repeat { rw is_group_hom.mul f }; constructor
-
-instance abelianization.induced.is_group_hom {G : Type u} {H : Type v}
-  [group G] [group H] (f : G → H) [is_group_hom f] :
-  is_group_hom (abelianization.induced f) :=
-⟨by refine quot.ind (λ x, _); refine quot.ind (λ y, _);
-rw ← is_group_hom.mul (quot.mk (rel G));
-dsimp [abelianization.induced, quot.lift_on];
-rw [is_group_hom.mul f]; refl⟩
-
-theorem abelianization.induced.continuous {G : Type u} {H : Type v}
-  [topological_group G] [topological_group H]
-  (f : G → H) [hf : is_topological_group_hom f] :
-  continuous (abelianization.induced f) :=
-have H : quot.mk (rel H) ∘ f
-    = abelianization.induced f ∘ quot.mk (rel G),
-  from rfl,
-continuous_coinduced_dom $ H ▸ hf.cts.comp continuous_coinduced_rng
-
-instance abelianization.induced.is_topological_group_hom {G : Type u} {H : Type v}
-  [topological_group G] [topological_group H]
-  (f : G → H) [is_topological_group_hom f] :
-  is_topological_group_hom (abelianization.induced f) :=
-is_topological_group_hom.mk $ abelianization.induced.continuous f
+instance Hausdorff_abelianization.topological_space' (G : Type u)
+  [topological_group G] : topological_space (quotient (Hausdorff_abelianization.setoid G)) :=
+(Hausdorff_abelianization.topological_group G).to_topological_space
 
 def Hausdorff_abelianization.induced {G : Type u} {H : Type v}
   [topological_group G] [topological_group H]
-  (f : G → H) [hf : is_topological_group_hom f]
-  (x : Hausdorff_abelianization G) : Hausdorff_abelianization H :=
-have H : ({1} : set (abelianization H)) = abelianization.induced f '' ({1} : set (abelianization G)),
-  from by simp [is_group_hom.one (abelianization.induced f)],
-quotient.lift_on x (quotient.mk ∘ abelianization.induced f) $
-λ x y (h : x⁻¹ * y ∈ _), quotient.sound $ show _ * _ ∈ _,
-by rw ← is_group_hom.inv (abelianization.induced f);
-rw ← is_group_hom.mul (abelianization.induced f);
-rw H; apply image_closure_subset_closure_image
-  (abelianization.induced.continuous f) ⟨_, h, rfl⟩
+  (f : G → H) [hf : is_topological_group_hom f] :
+  Hausdorff_abelianization G → Hausdorff_abelianization H :=
+quotient_group.lift _ (quotient.mk ∘ f) $ λ x hx,
+have H1 : _ := image_closure_subset_closure_image hf.cts
+  ⟨x, hx, rfl⟩,
+eq.symm $ quotient.sound $ show 1⁻¹ * f x ∈ _, by simp;
+  refine closure_mono (λ z H2, _) H1;
+  rcases H2 with ⟨y, ⟨L, h3, h4⟩, h5⟩;
+  refine ⟨L.map f,
+    (λ c h5, let ⟨b, h6, h7⟩ := list.exists_of_mem_map h5 in
+      let ⟨p, _, q, _, h8⟩ := h3 b h6 in
+      ⟨f p, trivial, f q, trivial, by rw [← h7, h8];
+        simp [is_group_hom.mul f, is_group_hom.inv f]⟩),
+    _⟩; simp [list.prod_map f, h4, h5]
+
+def Hausdorff_abelianization.induced.is_topological_group_hom {G : Type u} {H : Type v}
+  [topological_group G] [topological_group H]
+  (f : G → H) [hf : is_topological_group_hom f] :
+  is_topological_group_hom (Hausdorff_abelianization.induced f) :=
+{ cts := continuous_coinduced_dom $
+    show continuous (quotient.mk ∘ f),
+    from hf.cts.comp continuous_coinduced_rng,
+  .. quotient_group.lift.is_group_hom _ _ _ }
