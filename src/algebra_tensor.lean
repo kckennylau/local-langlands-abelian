@@ -202,17 +202,19 @@ by simp [tensor_a.to, factor_commutes]
   ((tensor_a.UMP R A B C).1 (f, g)).1 (x ⊗ₛ y) = f.1 x * g.1 y :=
 by simp [tensor_a.UMP]
 
-def tensor_a.map (C : Type v₁) (D : Type w₁)
+variables {R A B}
+def tensor_a.map {C : Type v₁} {D : Type w₁}
   [comm_ring C] [algebra R C] [comm_ring D] [algebra R D]
   (f : alg_hom A C) (g : alg_hom B D) :
   alg_hom (tensor_a R A B) (tensor_a R C D) :=
 (tensor_a.UMP R A B (tensor_a R C D)).1
   ((alg_hom.inl R C D).comp f, (alg_hom.inr R C D).comp g)
+variables (R A B)
 
 @[simp] lemma tensor_a.map.val (C : Type v₁) (D : Type w₁)
   [comm_ring C] [algebra R C] [comm_ring D] [algebra R D]
   (f : alg_hom A C) (g : alg_hom B D) (x : A) (y : B) :
-  (tensor_a.map R A B C D f g).1 (x ⊗ₛ y) = f.1 x ⊗ₛ g.1 y :=
+  (tensor_a.map f g).1 (x ⊗ₛ y) = f.1 x ⊗ₛ g.1 y :=
 by simp [tensor_a.map, alg_hom.inl, alg_hom.inr,
   tensor_a.inl, tensor_a.inr, tensor_a.mul_def]
 
@@ -238,6 +240,8 @@ def alg_hom.tensor_assoc' (C : Type u₁) [comm_ring C] [algebra R C] :
     ((alg_hom.inl R _ _).comp (alg_hom.inr R _ _),
     alg_hom.inr R _ _))
 
+section
+
 local attribute [instance] comm_ring.to_algebra
 
 @[simp] def alg_hom.ring_tensor : @alg_hom R (tensor_a R R A) A _ _ _ _ _ :=
@@ -245,3 +249,11 @@ local attribute [instance] comm_ring.to_algebra
 
 @[simp] def alg_hom.tensor_ring : @alg_hom R (tensor_a R A R) A _ _ _ _ _ :=
 (tensor_a.UMP R _ _ _).1 (alg_hom.id A, alg_hom.f A)
+
+end
+
+def base_change_left : algebra A (tensor_a R A B) :=
+{ f := tensor_a.inl R A B }
+
+def base_change_right : algebra B (tensor_a R A B) :=
+{ f := tensor_a.inr R A B }

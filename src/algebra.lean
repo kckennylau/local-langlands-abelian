@@ -1,6 +1,6 @@
 import algebra.module
 
-universes u v w u₁
+universes u v w u₁ v₁
 
 class algebra (R : out_param $ Type u) (A : Type v)
   [out_param $ comm_ring R] [comm_ring A] :=
@@ -119,6 +119,26 @@ rfl
   (f : alg_hom B C) (g : alg_hom A B) (x : A) :
   (alg_hom.comp f g).1 x = f.1 (g.1 x) :=
 rfl
+
+section category_theory
+
+variables {R : out_param $ Type u} {A : Type v} {B : Type w}
+variables {C : Type u₁} {D : Type v₁} [out_param $ comm_ring R]
+variables [comm_ring A] [algebra R A] [comm_ring B] [algebra R B]
+variables [comm_ring C] [algebra R C] [comm_ring D] [algebra R D]
+variables (f : alg_hom C D) (g : alg_hom B C) (h : alg_hom A B)
+
+@[simp] lemma alg_hom.comp_id : f.comp (alg_hom.id C) = f :=
+subtype.eq rfl
+
+@[simp] lemma alg_hom.id_comp : (alg_hom.id D).comp f = f :=
+subtype.eq rfl
+
+@[simp] lemma alg_hom.comp_assoc :
+  f.comp (g.comp h) = (f.comp g).comp h :=
+subtype.eq rfl
+
+end category_theory
 
 instance alg_hom.to_is_ring_hom {R : out_param $ Type u} (A : Type v) (B : Type w)
   [out_param $ comm_ring R] [comm_ring A] [algebra R A]

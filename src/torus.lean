@@ -1,13 +1,14 @@
 import algebra.pi_instances
-import .algebra_tensor .monoid_ring
+import .algebra_tensor .monoid_ring .field_extensions
 
-universes u v
+universes u v w u₁
 
 noncomputable theory
 local attribute [instance] classical.prop_decidable
 
 variables (R : Type u) [comm_ring R]
 variables (A : Type v) [comm_ring A] [algebra R A]
+variables (B : Type w) [comm_ring B] [algebra R B]
 
 section cogroup
 
@@ -16,14 +17,14 @@ local attribute [instance] comm_ring.to_algebra
 class cogroup :=
 (comul : alg_hom A (tensor_a R A A))
 (comul_assoc : (alg_hom.tensor_assoc R A A A).comp
-    ((tensor_a.map R _ _ _ _ comul (alg_hom.id A)).comp comul)
-  = (tensor_a.map R _ _ _ _ (alg_hom.id A) comul).comp comul)
+    ((tensor_a.map comul (alg_hom.id A)).comp comul)
+  = (tensor_a.map (alg_hom.id A) comul).comp comul)
 (coone : alg_hom A R)
 (comul_coone : (alg_hom.tensor_ring _ _).comp
-    ((tensor_a.map R _ _ _ _ (alg_hom.id A) coone).comp comul)
+    ((tensor_a.map (alg_hom.id A) coone).comp comul)
   = alg_hom.id A)
 (coone_comul : (alg_hom.ring_tensor _ _).comp
-    ((tensor_a.map R _ _ _ _ coone (alg_hom.id A)).comp comul)
+    ((tensor_a.map coone (alg_hom.id A)).comp comul)
   = alg_hom.id A)
 (coinv : alg_hom A A)
 (comul_coinv : ((tensor_a.UMP R A A _).1 (alg_hom.id A, coinv)).comp comul
@@ -78,3 +79,41 @@ monoid_ring R ℤ
 
 instance GL₁.cogroup : cogroup R (GL₁ R) :=
 by apply_instance
+
+class is_cogroup_hom [cogroup R A] [cogroup R B]
+  (f : @alg_hom R A B _ _ _ _ _) : Prop :=
+(comul : (cogroup.comul R B).comp f = (tensor_a.map f f).comp (cogroup.comul R A))
+
+section is_cogroup_hom
+
+local attribute [instance] comm_ring.to_algebra
+
+--   f(1)
+-- = f(1) * 1
+-- = f(1) * (f(1) * f(1)⁻¹)
+-- = (f(1) * f(1)) * f(1)⁻¹
+-- = f(1 * 1) * f(1)⁻¹
+-- = f(1) * f(1)⁻¹
+-- = 1
+/-theorem is_cogroup_hom.coone [cogroup R A] [cogroup R B]
+  (f : @alg_hom R A B _ _ _ _ _) [is_cogroup_hom R A B f] :
+  (cogroup.coone R B).comp f = cogroup.coone R A :=
+have _ := cogroup.comul_coone R A,
+calc  (cogroup.coone R B).comp f
+    = ((cogroup.coone R B).comp f).comp ((alg_hom.tensor_ring _ _).comp
+    ((tensor_a.map (alg_hom.id A) (cogroup.coone R A)).comp (cogroup.comul R A))) : by rw [cogroup.comul_coone R A]; simp
+... = _ : _
+... = _ : _-/
+
+end is_cogroup_hom
+
+structure cogroup_iso [cogroup R A] [cogroup R B] extends A ≃ B :=
+(to_is_alg_hom : is_alg_hom to_fun)
+(hom : is_cogroup_hom R A B ⟨to_fun, to_is_alg_hom⟩)
+
+structure torus (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T] :=
+(split : finite_invariant_intermediate_extension F AC)
+(rank : ℕ)
