@@ -83,7 +83,7 @@ def monoid_ring.of_alg_hom (A : Type w) [comm_ring A] [algebra R A]
   (f : alg_hom (monoid_ring R M) A) (x : M) : A :=
 f.1 $ finsupp.single x 1
 
-def monoid_ring.UMP (A : Type w) [comm_ring A] [algebra R A] :
+protected def monoid_ring.UMP (A : Type w) [comm_ring A] [algebra R A] :
   add_monoid_monoid_hom M A ≃ alg_hom (monoid_ring R M) A :=
 { to_fun := λ f, ⟨monoid_ring.eval R M A f, by apply_instance⟩,
   inv_fun := λ f, ⟨λ m, f.1 $ finsupp.single m 1,
@@ -104,3 +104,20 @@ def monoid_ring.UMP (A : Type w) [comm_ring A] [algebra R A] :
       convert finsupp.single_mul_single,
       all_goals { intros, simp [add_mul] }
     end }
+
+@[simp] lemma monoid_ring.UMP.to_fun.of_monoid
+  (A : Type w) [comm_ring A] [algebra R A]
+  (f : add_monoid_monoid_hom M A) (m : M) :
+  ((monoid_ring.UMP _ _ _).1 f).1 (monoid_ring.of_monoid _ _ m) = f.1 m :=
+by convert finsupp.sum_single_index _; simp; simp
+
+@[simp] lemma monoid_ring.UMP.symm
+  (A : Type w) [comm_ring A] [algebra R A]
+  (f : alg_hom (monoid_ring R M) A) (m : M) :
+  ((monoid_ring.UMP R M A).symm f).1 m = f.1 (monoid_ring.of_monoid _ _ m) :=
+rfl
+
+@[simp] lemma monoid_ring.eval.val (A : Type w) [comm_ring A] [algebra R A]
+  (f : add_monoid_monoid_hom M A) (m : M) :
+  monoid_ring.eval R M A f (monoid_ring.of_monoid R M m) = f.1 m :=
+monoid_ring.UMP.to_fun.of_monoid R M A f m
