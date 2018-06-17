@@ -2,122 +2,41 @@
 -- we only want its universal mapping property
 
 import data.finsupp data.equiv
-import .algebra
+import .monoid_ring
 
 universes u v
 
+def ℕ.UMP (R : Type u) [ring R] :
+  R ≃ add_monoid_monoid_hom ℕ R :=
+{ to_fun := λ r, ⟨λ n, r^n, pow_add r, rfl⟩,
+  inv_fun := λ f, f.1 1,
+  left_inv := λ r, pow_one r,
+  right_inv := λ f, subtype.eq $ funext $ λ n,
+    nat.rec_on n (by simp [f.2.zero]) $ λ n ih,
+    by simp [pow_succ'] at ih ⊢;
+    rw [ih, ← f.2.add], }
+
 variables (R : Type u) [decidable_eq R] [comm_ring R]
 
-def polynomial : Type u := ℕ →₀ R
+def polynomial : Type u := monoid_ring R ℕ
 
 instance polynomial.comm_ring : comm_ring (polynomial R) :=
-finsupp.to_comm_ring
+monoid_ring.comm_ring _ _
 
 instance polynomial.algebra : algebra R (polynomial R) :=
-{ f := λ r, finsupp.single 0 r,
-  hom :=
-  { map_add := λ x y, finsupp.single_add,
-    map_mul := λ x y, show finsupp.single (0 + 0) (x * y) = _, from finsupp.single_mul_single.symm,
-    map_one := rfl } }
+monoid_ring.algebra _ _
 
 def polynomial.eval (A : Type v) [comm_ring A] [algebra R A]
   (x : A) (f : polynomial R) : A :=
-f.sum $ λ n c, c • x^n
+monoid_ring.eval _ _ _ (ℕ.UMP A x) f
 
 instance polynomial.eval.is_alg_hom (A : Type v) [comm_ring A] [algebra R A] (r : A) :
   is_alg_hom (polynomial.eval R A r) :=
-have H1 : ∀ n c, finsupp.sum (finsupp.single n c) (λ (n : ℕ) (c : R), c • r ^ n) = c • r ^ n,
-  from λ n c, finsupp.sum_single_index zero_smul,
-have Hp : ∀ f g : polynomial R, finsupp.sum (f + g) (λ (n : ℕ) (c : R), c • r ^ n) =
-      finsupp.sum f (λ (n : ℕ) (c : R), c • r ^ n)
-    + finsupp.sum g (λ (n : ℕ) (c : R), c • r ^ n),
-  from λ f g, finsupp.sum_add_index (λ _, zero_smul) (λ _ _ _, add_smul),
-{ map_add := Hp,
-  map_mul :=
-  begin
-    intros f g,
-    change finsupp.sum (f * g) (λ (n : ℕ) (c : R), c • r ^ n) =
-      finsupp.sum f (λ (n : ℕ) (c : R), c • r ^ n) * finsupp.sum g (λ (n : ℕ) (c : R), c • r ^ n),
-    rw [finsupp.mul_def, finsupp.sum_sum_index],
-    apply finsupp.induction f,
-    { simp [finsupp.sum_zero_index] },
-    { intros n c f hf hc ih,
-      rw [finsupp.sum_add_index, finsupp.sum_single_index, ih],
-      rw [Hp, H1, add_mul],
-      suffices : finsupp.sum (finsupp.sum g (λ (a₂ : ℕ) (b₂ : R), finsupp.single (n + a₂) (c * b₂)))
-        (λ (n : ℕ) (c : R), c • r ^ n)
-        = c • r ^ n * finsupp.sum g (λ (n : ℕ) (c : R), c • r ^ n),
-      { rw this },
-      apply finsupp.induction g,
-      { simp [finsupp.sum_zero_index] },
-      { intros n c g hg hc ih,
-        rw [finsupp.sum_add_index, finsupp.sum_single_index],
-        rw [Hp, H1, ih, Hp, H1],
-        rw [mul_add, mul_smul, pow_add],
-        rw [algebra.smul_def, algebra.smul_def, algebra.smul_def, algebra.smul_def],
-        ac_refl,
-        { rw [mul_zero, finsupp.single_zero] },
-        { intros, rw [mul_zero, finsupp.single_zero] },
-        { intros,
-          rw [mul_add, finsupp.single_add] } },
-      { convert finsupp.sum_zero_index,
-        convert finsupp.sum_zero,
-        funext,
-        rw [zero_mul, finsupp.single_zero],
-        apply_instance, apply_instance },
-      { intros,
-        convert finsupp.sum_zero_index,
-        convert finsupp.sum_zero,
-        funext,
-        rw [zero_mul, finsupp.single_zero],
-        apply_instance, apply_instance },
-      { intros a r s,
-        apply finsupp.induction g,
-        { simp [finsupp.sum_zero_index] },
-        { intros n c g hg hc ih,
-          convert Hp _ _,
-          convert finsupp.sum_add,
-          { funext, rw [add_mul, finsupp.single_add] },
-          apply_instance, apply_instance } } },
-      { intros, apply zero_smul },
-      { intros, apply add_smul }
-  end,
-  map_one := by convert H1 0 1; rw [one_smul]; refl,
-  commute := λ r, by unfold algebra.f; unfold polynomial.eval;
-    rw [finsupp.sum_single_index];
-    [apply mul_one, { change (0:R) • (1:A) = 0, apply zero_smul }]}
+monoid_ring.eval.is_alg_hom _ _ _ _
 
 def polynomial.UMP (A : Type v) [comm_ring A] [algebra R A] :
   A ≃ alg_hom (polynomial R) A :=
-{ to_fun := λ r, ⟨polynomial.eval R A r, by apply_instance⟩,
-  inv_fun := λ φ, φ.1 (finsupp.single 1 1),
-  left_inv := λ r, by dsimp [polynomial.eval]; rw [finsupp.sum_single_index];
-    [{ change (1:R) • (r^1:A) = r, rw [one_smul, pow_one] },
-     { change (0:R) • (r^1:A) = 0, apply zero_smul }],
-  right_inv := λ φ, subtype.eq $ funext $ λ f,
-    begin
-      dsimp [polynomial.eval],
-      apply finsupp.induction f,
-      { rw [finsupp.sum_zero_index];
-        from (is_ring_hom.map_zero φ.1).symm },
-      intros n c f hf hc ih,
-      dsimp,
-      rw [finsupp.sum_add_index, finsupp.sum_single_index],
-      rw [is_ring_hom.map_add φ.1, ← ih, algebra.smul_def],
-      rw [← is_alg_hom.commute φ.1],
-      unfold algebra.f,
-      suffices : φ.val (finsupp.single 0 c) * φ.val (finsupp.single 1 1) ^ n = φ.val (finsupp.single n c),
-      { simp [-add_comm], exact this },
-      apply nat.rec_on n,
-      { rw [pow_zero, mul_one] },
-      { intros n ih,
-        rw [pow_succ, mul_left_comm, ih],
-        rw [← is_ring_hom.map_mul φ.1, finsupp.single_mul_single],
-        rw [nat.one_add, one_mul] },
-      { apply zero_smul },
-      { intros, apply zero_smul},
-      { intros, apply add_smul }
-    end }
+(ℕ.UMP A).trans (monoid_ring.UMP _ _ _)
 
 theorem polynomial.UMP.commute (A : Type v) [comm_ring A] [algebra R A] (x : A) :
   polynomial.UMP R A x (finsupp.single 1 1) = x :=

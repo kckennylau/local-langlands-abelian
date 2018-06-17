@@ -64,7 +64,7 @@ class is_alg_hom {R : out_param $ Type u} {A : Type v} {B : Type w}
   [out_param $ comm_ring R] [comm_ring A] [algebra R A]
   [comm_ring B] [algebra R B]
   (φ : A → B) extends is_ring_hom φ : Prop :=
-(commute : ∀ r, φ (algebra.f A r) = algebra.f B r)
+(commute : ∀ r : R, φ r = r)
 
 def alg_hom {R : out_param $ Type u} (A : Type v) (B : Type w)
   [out_param $ comm_ring R] [comm_ring A] [algebra R A]
