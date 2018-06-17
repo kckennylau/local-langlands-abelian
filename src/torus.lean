@@ -1,3 +1,4 @@
+import algebra.pi_instances
 import .algebra_tensor .monoid_ring
 
 universes u v
@@ -34,37 +35,46 @@ end cogroup
 
 open monoid_ring
 
-@[reducible] def GL₁ : Type u :=
-monoid_ring R ℤ
+attribute [instance] add_comm_group.to_add_comm_monoid
 
-instance GL₁.algebra : algebra R (GL₁ R) :=
-by apply_instance
+instance group_ring.cogroup (M : Type v) [add_comm_group M] :
+  cogroup R (monoid_ring R M) :=
+{ comul := (monoid_ring.UMP R M _).1
+    ⟨λ n, (of_monoid _ _ n) ⊗ₛ (of_monoid _ _ n),
+    λ _ _, by simp [is_add_monoid_monoid_hom.add (of_monoid R M), tensor_a.mul_def],
+    by simp [is_add_monoid_monoid_hom.zero (of_monoid R M), tensor_a.one_def]⟩,
+  comul_assoc := by apply ((monoid_ring.UMP R M _).symm.apply_eq_iff_eq _ _).1;
+    apply subtype.eq; funext n; simp,
+  coone := by letI := comm_ring.to_algebra R; from
+    (monoid_ring.UMP R M _).1 ⟨λ _, 1, by simp, rfl⟩,
+  comul_coone := by apply ((monoid_ring.UMP R M _).symm.apply_eq_iff_eq _ _).1;
+    apply subtype.eq; funext n; simp,
+  coone_comul := by apply ((monoid_ring.UMP R M _).symm.apply_eq_iff_eq _ _).1;
+    apply subtype.eq; funext n; simp,
+  coinv := (monoid_ring.UMP R M _).1
+    ⟨λ n, of_monoid _ _ (-n),
+    λ _ _, by simp [is_add_monoid_monoid_hom.add (of_monoid R M)],
+    by simp [is_add_monoid_monoid_hom.zero (of_monoid R M)]⟩,
+  comul_coinv := by apply ((monoid_ring.UMP R M _).symm.apply_eq_iff_eq _ _).1;
+    apply subtype.eq; funext _; simp;
+    rw [← is_add_monoid_monoid_hom.add (of_monoid R M)];
+    simp [is_add_monoid_monoid_hom.zero (of_monoid R M)],
+  coinv_comul := by apply ((monoid_ring.UMP R M _).symm.apply_eq_iff_eq _ _).1;
+    apply subtype.eq; funext _; simp;
+    rw [← is_add_monoid_monoid_hom.add (of_monoid R M)];
+    simp [is_add_monoid_monoid_hom.zero (of_monoid R M)] }
 
 instance int.add_comm_group : add_comm_group ℤ :=
 ring.to_add_comm_group ℤ
 
+@[reducible] def GL₁ⁿ (n : ℕ) : Type u :=
+monoid_ring R (fin n → ℤ)
+
+instance GL₁ⁿ.cogroup (n : ℕ) : cogroup R (GL₁ⁿ R n) :=
+by apply_instance
+
+@[reducible] def GL₁ : Type u :=
+monoid_ring R ℤ
+
 instance GL₁.cogroup : cogroup R (GL₁ R) :=
-{ comul := (monoid_ring.UMP R ℤ _).1
-    ⟨λ n, (of_monoid _ _ n) ⊗ₛ (of_monoid _ _ n),
-    λ m n, by simp [is_add_monoid_monoid_hom.add (of_monoid R ℤ), tensor_a.mul_def],
-    by simp [is_add_monoid_monoid_hom.zero (of_monoid R ℤ), tensor_a.one_def]⟩,
-  comul_assoc := by apply ((monoid_ring.UMP R ℤ _).symm.apply_eq_iff_eq _ _).1;
-    apply subtype.eq; funext n; simp,
-  coone := by letI := comm_ring.to_algebra R; from
-    (monoid_ring.UMP R ℤ _).1 ⟨λ _, 1, by simp, rfl⟩,
-  comul_coone := by apply ((monoid_ring.UMP R ℤ _).symm.apply_eq_iff_eq _ _).1;
-    apply subtype.eq; funext n; simp,
-  coone_comul := by apply ((monoid_ring.UMP R ℤ _).symm.apply_eq_iff_eq _ _).1;
-    apply subtype.eq; funext n; simp,
-  coinv := (monoid_ring.UMP R ℤ _).1
-    ⟨λ n, of_monoid _ _ (-n),
-    λ m n, by simp [is_add_monoid_monoid_hom.add (of_monoid R ℤ)],
-    by simp [is_add_monoid_monoid_hom.zero (of_monoid R ℤ)]⟩,
-  comul_coinv := by apply ((monoid_ring.UMP R ℤ _).symm.apply_eq_iff_eq _ _).1;
-    apply subtype.eq; funext n; simp;
-    rw [← is_add_monoid_monoid_hom.add (of_monoid R ℤ)];
-    simp [is_add_monoid_monoid_hom.zero (of_monoid R ℤ)],
-  coinv_comul := by apply ((monoid_ring.UMP R ℤ _).symm.apply_eq_iff_eq _ _).1;
-    apply subtype.eq; funext n; simp;
-    rw [← is_add_monoid_monoid_hom.add (of_monoid R ℤ)];
-    simp [is_add_monoid_monoid_hom.zero (of_monoid R ℤ)] }
+by apply_instance
