@@ -3,6 +3,8 @@ import .algebra_tensor .monoid_ring .field_extensions
 
 universes u v w u₁
 
+set_option eqn_compiler.zeta true
+
 noncomputable theory
 local attribute [instance] classical.prop_decidable
 
@@ -71,6 +73,9 @@ ring.to_add_comm_group ℤ
 @[reducible] def GL₁ⁿ (n : ℕ) : Type u :=
 monoid_ring R (fin n → ℤ)
 
+instance GL₁ⁿ.algebra (n : ℕ) : algebra R (GL₁ⁿ R n) :=
+by apply_instance
+
 instance GL₁ⁿ.cogroup (n : ℕ) : cogroup R (GL₁ⁿ R n) :=
 by apply_instance
 
@@ -107,13 +112,37 @@ calc  (cogroup.coone R B).comp f
 
 end is_cogroup_hom
 
+def cogroup.base_change_left [cogroup R B] :
+  @cogroup A _ (tensor_a R A B) _ (base_change_left _ _ _) :=
+sorry
+
 structure cogroup_iso [cogroup R A] [cogroup R B] extends A ≃ B :=
 (to_is_alg_hom : is_alg_hom to_fun)
 (hom : is_cogroup_hom R A B ⟨to_fun, to_is_alg_hom⟩)
+
+#check λ (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+(split : finite_Galois_intermediate_extension F AC)
+(rank : ℕ),
+@cogroup_iso split.S _ (tensor_a F split.S T)
+  (tensor_a.comm_ring _ _ _)
+  (base_change_left F split.S T)
+  (GL₁ⁿ split.S rank) _ _
+  (cogroup.base_change_left F split.S T)
+  (GL₁ⁿ.cogroup _ _)
 
 structure torus (F : Type u) [field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (T : Type w) [comm_ring T] [algebra F T] [cogroup F T] :=
-(split : finite_invariant_intermediate_extension F AC)
+(split : finite_Galois_intermediate_extension F AC)
 (rank : ℕ)
+(splits :
+  @cogroup_iso split.S _ (tensor_a F split.S T)
+  (tensor_a.comm_ring _ _ _)
+  (base_change_left F split.S T)
+  (GL₁ⁿ split.S rank) _ _
+  (cogroup.base_change_left F split.S T)
+  (GL₁ⁿ.cogroup _ _))

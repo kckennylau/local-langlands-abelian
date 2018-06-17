@@ -2,6 +2,7 @@ import linear_algebra.dimension
 import analysis.topology.topological_structures
 import algebra.pi_instances
 import .polynomial .topological_group
+import .algebra_tensor
 
 local attribute [instance] classical.prop_decidable
 local attribute [instance] comm_ring.to_algebra
@@ -103,27 +104,47 @@ theorem Gal.ext (α : Type u) (β : Type v) [field α] [field β] [field_extensi
   ∀ f g : Gal α β, (∀ x, f.to_equiv x = g.to_equiv x) → f = g
 | ⟨_, _, _⟩ ⟨_, _, _⟩ H := by rw Gal.mk.inj_eq; from equiv.ext _ _ H
 
-structure finite_invariant_intermediate_extension (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β] :=
-( S : set β )
-( intermediate : is_intermediate_field α β S )
-( finite : vector_space.dim α S < cardinal.omega )
-( proj : Gal α β → Gal α S )
-( proj_commutes : ∀ f : Gal α β, ∀ x : S, ((proj f).to_equiv x).1 = f.to_equiv x.1 )
-attribute [instance] finite_invariant_intermediate_extension.intermediate
+class is_reduced_comm_ring (R : Type u) [comm_ring R] : Prop :=
+(reduced : ∀ r : R, ∀ n : ℕ, r ^ n = 0 → r = 0)
+
+-- http://www.math.uconn.edu/~kconrad/blurbs/galoistheory/separable2.pdf
+class is_separable_intermediate_extension
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (S : set AC) [is_intermediate_field F AC S] : Prop :=
+(separable : is_reduced_comm_ring (tensor_a F S AC))
+
+structure finite_Galois_intermediate_extension
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC] :=
+( S : set AC )
+( intermediate : is_intermediate_field F AC S )
+( finite : vector_space.dim F S < cardinal.omega )
+( separable : is_separable_intermediate_extension F AC S )
+( proj : Gal F AC → Gal F S )
+( proj_commutes : ∀ f : Gal F AC, ∀ x : S, ((proj f).to_equiv x).1 = f.to_equiv x.1 )
+attribute [instance] finite_Galois_intermediate_extension.intermediate
+attribute [instance] finite_Galois_intermediate_extension.separable
 
 -- typeclass inference shortcut
-instance finite_invariant_intermediate_extension.to_subfield
-  (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β]
-  (E : finite_invariant_intermediate_extension α β) :
+instance finite_Galois_intermediate_extension.to_subfield
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (E : finite_Galois_intermediate_extension F AC) :
   subfield _ E.S :=
 by apply_instance
 
-instance Gal.topological_space (α : Type u) (β : Type v) [field α] [field β] [field_extension α β] :
-  topological_space (Gal α β) :=
+instance Gal.topological_space
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (E : finite_Galois_intermediate_extension F AC) :
+  topological_space (Gal F AC) :=
 @topological_space.induced _
-  (Π S : finite_invariant_intermediate_extension α β, Gal α S.S)
+  (Π S : finite_Galois_intermediate_extension F AC, Gal F S.S)
   (λ f S, S.proj f)
   (@Pi.topological_space _ _ (λ _, ⊤))
 
@@ -154,25 +175,30 @@ instance Gal.group (α : Type u) (β : Type v) [field α] [field β] [field_exte
   mul_left_inv := λ _, Gal.ext _ _ _ _ $ λ _,
     equiv.apply_inverse_apply _ _ }
 
-def Gal.finite_invariant_intermediate_extension.topological_group (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β] (S : finite_invariant_intermediate_extension α β) :
-  topological_group (Gal α S.S) :=
+def Gal.finite_Galois_intermediate_extension.topological_group
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (E : finite_Galois_intermediate_extension F AC) :
+  topological_group (Gal F E.S) :=
+by letI : topological_space (Gal F E.S) := ⊤; from
 { continuous_mul := λ x1 h1, by apply is_open_prod_iff.2; intros x y H;
     refine ⟨{x}, {y}, trivial, trivial, _, _, _⟩; simpa using H,
   continuous_inv := continuous_top,
-  .. Gal.group α S.S,
-  .. (⊤ : topological_space (Gal α S.S)) }
+  .. Gal.group F E.S }
 
-instance Gal.topological_group (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β] :
-  topological_group (Gal α β) :=
-@topological_group.induced (Gal α β)
-  (Π S : finite_invariant_intermediate_extension α β, Gal α S.S)
+instance Gal.topological_group
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC] :
+  topological_group (Gal F AC) :=
+@topological_group.induced (Gal F AC)
+  (Π S : finite_Galois_intermediate_extension F AC, Gal F S.S)
   _
   (@Pi.topological_group
-    (finite_invariant_intermediate_extension α β)
-    (λ S, Gal α S.S)
-    (λ i, Gal.finite_invariant_intermediate_extension.topological_group _ _ _))
+    (finite_Galois_intermediate_extension F AC)
+    (λ S, Gal F S.S)
+    (λ i, Gal.finite_Galois_intermediate_extension.topological_group _ _ _))
   (λ f S, S.proj f)
   (by constructor; intros f g; funext S; apply Gal.ext; intro x;
     apply subtype.eq; have := S.proj_commutes; dsimp at this ⊢;
@@ -197,18 +223,21 @@ instance Gal.intermediate.subgroup (α : Type u) (β : Type v)
     by symmetry; rw ← equiv.apply_eq_iff_eq_inverse_apply;
       from H1 x hx }
 
-instance Gal.normal (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β]
-  (E : finite_invariant_intermediate_extension α β) :
-  normal_subgroup (Gal.intermediate α β E.S) :=
+instance Gal.normal (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (E : finite_Galois_intermediate_extension F AC) :
+  normal_subgroup (Gal.intermediate F AC E.S) :=
 { normal := λ f hf g x hx,
     show g.to_equiv.trans (f.to_equiv.trans g.to_equiv.symm) x = x,
     from have _ := E.proj_commutes g ⟨x, hx⟩,
     by simp at this ⊢; rw [← this, hf, this];
       [simp, from (((E.proj g).to_equiv) ⟨x, hx⟩).2] }
 
-instance Gal.intermediate.topological_group (α : Type u) (β : Type v)
-  [field α] [field β] [field_extension α β]
-  (E : set β) [is_intermediate_field α β E] :
-  topological_group (Gal.intermediate α β E) :=
+instance Gal.intermediate.topological_group
+  (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (E : finite_Galois_intermediate_extension F AC) :
+  topological_group (Gal.intermediate F AC E.S) :=
 topological_group.induced _ _ subtype.val

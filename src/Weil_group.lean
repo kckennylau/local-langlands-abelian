@@ -18,11 +18,11 @@ constant Artin_reciprocity (F : Type u) [local_field F]
 topological_group_isomorphism (units F) (Hausdorff_abelianization (Gal F AC))
 
 -- uses Haar measure
-instance finite_invariant_intermediate_extension.to_local_field
+instance finite_Galois_intermediate_extension.to_local_field
   (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
-  (E : finite_invariant_intermediate_extension F AC) :
+  (E : finite_Galois_intermediate_extension F AC) :
   local_field E.S :=
 { continuous_add := sorry,
   continuous_neg := sorry,
@@ -32,6 +32,8 @@ instance finite_invariant_intermediate_extension.to_local_field
   non_discrete := sorry,
   .. (sorry : topological_space E.S) }
 
+attribute [instance] topological_group.to_topological_space
+
 -- axiomatization due to Tate
 class Weil_group (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
@@ -40,7 +42,7 @@ class Weil_group (F : Type u) [local_field F]
 (ϕ : W → Gal F AC)
 (ϕ_hom : is_topological_group_hom ϕ)
 (ϕ_dense : closure (set.range ϕ) = set.univ)
-(r : Π E : finite_invariant_intermediate_extension F AC,
+(r : Π E : finite_Galois_intermediate_extension F AC,
   topological_group_isomorphism (units E.S)
     (Hausdorff_abelianization (ϕ ⁻¹' (Gal.intermediate F AC E.S))))
 -- plus 4 more axioms
@@ -51,7 +53,7 @@ def induced_Weil_group (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_invariant_intermediate_extension F AC) :
+  (E : finite_Galois_intermediate_extension F AC) :
   set W :=
 hw.ϕ ⁻¹' (Gal.intermediate F AC E.S)
 
@@ -59,7 +61,7 @@ instance induced_Weil_group.normal (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_invariant_intermediate_extension F AC) :
+  (E : finite_Galois_intermediate_extension F AC) :
   normal_subgroup (induced_Weil_group F AC W E) :=
 by letI := Gal.topological_group F AC; from
 { .. @is_group_hom.preimage_normal _ _ _ _ _ _ _ _ }
@@ -68,13 +70,13 @@ def relative_Weil_group (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_invariant_intermediate_extension F AC) : Type w :=
+  (E : finite_Galois_intermediate_extension F AC) : Type w :=
 left_cosets (commutator_subgroup W (induced_Weil_group F AC W E))
 
 instance relative_Weil_group.topological_group (F : Type u) [local_field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_invariant_intermediate_extension F AC) :
+  (E : finite_Galois_intermediate_extension F AC) :
   topological_group (relative_Weil_group F AC W E) :=
 quotient_group.topological_group _ _
