@@ -1,4 +1,4 @@
-import algebra.pi_instances
+import algebra.pi_instances analysis.complex
 import .algebra_tensor .monoid_ring .field_extensions
 
 universes u v w u₁
@@ -112,7 +112,24 @@ calc  (cogroup.coone R B).comp f
 
 end is_cogroup_hom
 
-def cogroup.base_change_left [cogroup R B] :
+def cogroup_hom [cogroup R A] [cogroup R B] :=
+subtype (is_cogroup_hom R A B)
+
+def GL₁.alg_hom : units A ≃ alg_hom (GL₁ R) A :=
+equiv.trans (show units A ≃ add_monoid_monoid_hom ℤ A, from
+{ to_fun := λ u, ⟨λ n, ((u^n:units A):A),
+    λ _ _, by simp [gpow_add], by simp⟩,
+  inv_fun := λ f, ⟨f.1 1, f.1 (-1),
+    by rw [← f.2.1, add_neg_self, f.2.2],
+    by rw [← f.2.1, neg_add_self, f.2.2]⟩,
+  left_inv := λ u, units.ext $ by simp; refl,
+  right_inv := λ f, subtype.eq $ funext $ λ n,
+    by apply int.induction_on n; intros;
+      simp at *; simp [f.2.2, f.2.1, gpow_add, *]; refl})
+(monoid_ring.UMP _ _ _)
+
+-- needs more lemmas about tensoring
+instance cogroup.base_change_left [cogroup R B] :
   @cogroup A _ (tensor_a R A B) _ (base_change_left _ _ _) :=
 sorry
 
@@ -120,12 +137,12 @@ structure cogroup_iso [cogroup R A] [cogroup R B] extends A ≃ B :=
 (to_is_alg_hom : is_alg_hom to_fun)
 (hom : is_cogroup_hom R A B ⟨to_fun, to_is_alg_hom⟩)
 
-#check λ (F : Type u) [field F]
+def torus.is_split (F : Type u) [field F]
   (AC : Type v) [field AC] [is_alg_closed_field AC]
   [field_extension F AC] [is_algebraic_closure F AC]
   (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
-(split : finite_Galois_intermediate_extension F AC)
-(rank : ℕ),
+  (split : finite_Galois_intermediate_extension F AC)
+  (rank : ℕ) :=
 @cogroup_iso split.S _ (tensor_a F split.S T)
   (tensor_a.comm_ring _ _ _)
   (base_change_left F split.S T)
@@ -139,10 +156,111 @@ structure torus (F : Type u) [field F]
   (T : Type w) [comm_ring T] [algebra F T] [cogroup F T] :=
 (split : finite_Galois_intermediate_extension F AC)
 (rank : ℕ)
-(splits :
-  @cogroup_iso split.S _ (tensor_a F split.S T)
-  (tensor_a.comm_ring _ _ _)
-  (base_change_left F split.S T)
-  (GL₁ⁿ split.S rank) _ _
-  (cogroup.base_change_left F split.S T)
-  (GL₁ⁿ.cogroup _ _))
+(splits : torus.is_split F AC T split rank)
+
+--set_option trace.class_instances true
+def torus.base_change (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : Type (max v w) :=
+tensor_a F ht.split.S T
+
+instance torus.base_change.comm_ring (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :
+  comm_ring (torus.base_change F AC T ht) :=
+tensor_a.comm_ring _ _ _
+
+instance torus.base_change.algebra (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :
+  algebra ht.split.S (torus.base_change F AC T ht) :=
+base_change_left _ _ _
+
+instance torus.base_change.cogroup (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :
+  cogroup ht.split.S (torus.base_change F AC T ht) :=
+cogroup.base_change_left _ _ _
+
+def torus.char (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :=
+cogroup_hom ht.split.S (GL₁ ht.split.S) (torus.base_change F AC T ht)
+
+def torus.co_char (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :=
+cogroup_hom ht.split.S (GL₁ ht.split.S) (torus.base_change F AC T ht)
+
+instance torus.co_char.add_comm_group (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : add_comm_group (torus.co_char F AC T ht) :=
+sorry
+
+def torus.rat_pt (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :=
+@alg_hom F T F _ _ _ _ (comm_ring.to_algebra F)
+
+instance torus.rat_pt.topological_group (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : topological_group (torus.rat_pt F AC T ht) :=
+sorry
+
+def torus.hat (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) :=
+{ f : torus.co_char F AC T ht → units ℂ //
+    ∀ x y, f (x + y) = f x * f y }
+
+instance : comm_group (units ℂ) :=
+{ mul_comm := λ x y, units.ext $ by simp [mul_comm],
+  .. (by apply_instance : group (units ℂ)) }
+
+instance torus.hat.is_subgroup (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : is_subgroup (λ (f : torus.co_char F AC T ht → units ℂ),
+    ∀ (x y : torus.co_char F AC T ht), f (x + y) = f x * f y) :=
+{ mul_mem := λ f g hf hg x y,
+    show f (x + y) * g (x + y) = (f x * g x) * (f y * g y),
+    by simp [hf x y, hg x y]; ac_refl,
+  one_mem := λ x y, one_mul 1,
+  inv_mem := λ f hf x y,
+    show (f (x + y))⁻¹ = (f x)⁻¹ * (f y)⁻¹,
+    by simp [hf x y, mul_comm] }
+
+instance torus.hat.group (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : group (torus.hat F AC T ht) :=
+subtype.group
+
+instance torus.hat.topological_group (F : Type u) [field F]
+  (AC : Type v) [field AC] [is_alg_closed_field AC]
+  [field_extension F AC] [is_algebraic_closure F AC]
+  (T : Type w) [comm_ring T] [algebra F T] [cogroup F T]
+  (ht : torus F AC T) : topological_group (torus.hat F AC T ht) :=
+topological_group.induced _ _ subtype.val

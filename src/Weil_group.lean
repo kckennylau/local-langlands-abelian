@@ -42,9 +42,9 @@ class Weil_group (F : Type u) [local_field F]
 (ϕ : W → Gal F AC)
 (ϕ_hom : is_topological_group_hom ϕ)
 (ϕ_dense : closure (set.range ϕ) = set.univ)
-(r : Π E : finite_Galois_intermediate_extension F AC,
+/-(r : Π E : finite_Galois_intermediate_extension F AC,
   topological_group_isomorphism (units E.S)
-    (Hausdorff_abelianization (ϕ ⁻¹' (Gal.intermediate F AC E.S))))
+    (Hausdorff_abelianization (ϕ ⁻¹' (Gal.intermediate F AC E.S))))-/
 -- plus 4 more axioms
 
 attribute [instance] Weil_group.ϕ_hom

@@ -1,5 +1,6 @@
 import analysis.topology.topological_structures
 import analysis.topology.continuity
+import analysis.complex
 import algebra.pi_instances
 import group_theory.coset
 import .quotient_group
@@ -164,6 +165,10 @@ class is_topological_group_hom {α : Type u} {β : Type v}
   (f : α → β) extends is_group_hom f : Prop :=
 (cts : continuous f)
 
+def topological_group_hom (α : Type u) (β : Type v)
+  [topological_group α] [topological_group β] :=
+subtype (@is_topological_group_hom α β)
+
 structure topological_group_isomorphism (α : Type u) (β : Type v)
   [topological_group α] [topological_group β] extends α ≃ β :=
 (hom_to_fun : is_topological_group_hom to_fun)
@@ -214,3 +219,16 @@ have (⋃ x : {x // ⟦x⟧ = 1}, (λ y, x.1 * y) ⁻¹' S)
     by simp [h1]⟩⟩,
 this ▸ is_open_Union $ λ x : {x // ⟦x⟧ = 1},
 continuous_mul continuous_const continuous_id _ hs)
+
+noncomputable instance : topological_field ℂ :=
+{ continuous_inv :=
+    have H : (units.val ∘ λ (p : units ℂ), p⁻¹)
+        = λ p, p.1⁻¹,
+      from funext $ λ x, units.inv_eq_inv x,
+    by apply continuous_induced_rng; rw H;
+      apply continuous_iff_tendsto.2; intro x;
+      cases x with x y h1 h2;
+      apply filter.tendsto.comp
+        (continuous_iff_tendsto.1 continuous_induced_dom _)
+        (complex.tendsto_inv _);
+      simp; intro H; simp [H] at h1; assumption }
