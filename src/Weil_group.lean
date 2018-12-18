@@ -5,41 +5,31 @@ attribute [instance] ring.to_add_comm_group
 
 universes u v w
 
-set_option eqn_compiler.zeta true
-
-class local_field (α : Type u) extends topological_field α :=
-(locally_compact : ∀ x : α, ∃ (U : set α) (HU : is_open U) (X : set α) (HX : compact X), x ∈ U ∧ U ⊆ X)
-(non_discrete : to_topological_field.to_topological_space ≠ ⊤)
+class local_field (α : Type u) extends topological_field α, t2_space α, locally_compact_space α :=
+(ne_bot : to_topological_field.to_topological_space ≠ ⊤)
 
 -- very non-trivial
-constant Artin_reciprocity (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC] :
-topological_group_isomorphism (units F) (Hausdorff_abelianization (Gal F AC))
+def Artin_reciprocity (F : Type u) [local_field F] :
+  topological_group_isomorphism (units F) (Hausdorff_abelianization (Gal (algebraic_closure F))) :=
+sorry
 
 -- uses Haar measure
-instance finite_Galois_intermediate_extension.to_local_field
-  (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (E : finite_Galois_intermediate_extension F AC) :
+instance finite_Galois_extension.to_local_field
+  (F : Type u) [local_field F] (E : finite_Galois_extension F) :
   local_field E.S :=
 { continuous_add := sorry,
   continuous_neg := sorry,
   continuous_mul := sorry,
   continuous_inv := sorry,
-  locally_compact := sorry,
-  non_discrete := sorry,
+  t2 := sorry,
+  local_compact_nhds := sorry,
+  ne_bot := sorry,
   .. (sorry : topological_space E.S) }
 
-attribute [instance] topological_group.to_topological_space
-
 -- axiomatization due to Tate
-class Weil_group (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (W : Type w) extends topological_group W :=
-(ϕ : W → Gal F AC)
+class Weil_group (F : Type u) [local_field F] (W : Type w)
+  extends topological_space W, group W, topological_group W :=
+(ϕ : W → Gal (algebraic_closure F))
 (ϕ_hom : is_topological_group_hom ϕ)
 (ϕ_dense : closure (set.range ϕ) = set.univ)
 /-(r : Π E : finite_Galois_intermediate_extension F AC,
@@ -50,33 +40,43 @@ class Weil_group (F : Type u) [local_field F]
 attribute [instance] Weil_group.ϕ_hom
 
 def induced_Weil_group (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_Galois_intermediate_extension F AC) :
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) :
   set W :=
-hw.ϕ ⁻¹' (Gal.intermediate F AC E.S)
+Weil_group.ϕ F ⁻¹' E.S.Gal
 
+set_option class.instance_max_depth 20
 instance induced_Weil_group.normal (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_Galois_intermediate_extension F AC) :
-  normal_subgroup (induced_Weil_group F AC W E) :=
-by letI := Gal.topological_group F AC; from
-{ .. @is_group_hom.preimage_normal _ _ _ _ _ _ _ _ }
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) :
+  normal_subgroup (induced_Weil_group F W E) :=
+by letI := Gal_algebraic_closure.topological_space F;
+   letI := Gal.group (algebraic_closure F);
+   letI := Gal.topological_group F; from
+@is_group_hom.preimage_normal W (Gal (algebraic_closure F)) _ _inst_3 (Weil_group.ϕ F) (Weil_group.ϕ_hom F W).to_is_group_hom _ (Gal.normal _)
 
 def relative_Weil_group (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_Galois_intermediate_extension F AC) : Type w :=
-left_cosets (commutator_subgroup W (induced_Weil_group F AC W E))
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) : Type w :=
+quotient_group.quotient (commutator_subgroup W (induced_Weil_group F W E))
 
-instance relative_Weil_group.topological_group (F : Type u) [local_field F]
-  (AC : Type v) [field AC] [is_alg_closed_field AC]
-  [field_extension F AC] [is_algebraic_closure F AC]
-  (W : Type w) [hw : Weil_group F AC W]
-  (E : finite_Galois_intermediate_extension F AC) :
-  topological_group (relative_Weil_group F AC W E) :=
+instance relative_Weil_group.topological_space
+  (F : Type u) [local_field F]
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) :
+  topological_space (relative_Weil_group F W E) :=
+quotient_group.topological_space _ _
+
+instance relative_Weil_group.group
+  (F : Type u) [local_field F]
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) :
+  group (relative_Weil_group F W E) :=
+quotient_group.group _
+
+instance relative_Weil_group.topological_group
+  (F : Type u) [local_field F]
+  (W : Type w) [Weil_group F W]
+  (E : finite_Galois_extension F) :
+  topological_group (relative_Weil_group F W E) :=
 quotient_group.topological_group _ _

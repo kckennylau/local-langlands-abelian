@@ -1,7 +1,20 @@
-import data.finsupp data.equiv
+import data.finsupp data.equiv.basic
 import .algebra
 
 universes u v w
+
+class is_add_monoid_monoid_hom {α : Type u} {β : Type v}
+  [add_monoid α] [monoid β] (f : α → β) : Prop :=
+(add : ∀ a b : α, f (a + b) = f a * f b)
+(zero : f 0 = 1)
+
+def add_monoid_monoid_hom (α : Type u) (β : Type v)
+  [add_monoid α] [monoid β] : Type (max u v) :=
+subtype $ @is_add_monoid_monoid_hom α β _ _
+
+instance add_monoid_monoid_hom.is_add_monoid_monoid_hom (α : Type u) (β : Type v)
+  [add_monoid α] [monoid β] (f : add_monoid_monoid_hom α β) :
+  is_add_monoid_monoid_hom f.1 := f.2
 
 variables (R : Type u) (M : Type v)
 variables [decidable_eq R] [decidable_eq M]
@@ -9,115 +22,100 @@ variables [comm_ring R] [add_comm_monoid M]
 
 def monoid_ring : Type (max u v) := M →₀ R
 
-instance monoid_ring.comm_ring : comm_ring (monoid_ring R M) :=
-finsupp.to_comm_ring
+namespace monoid_ring
 
-attribute [instance] add_comm_monoid.to_add_monoid
+instance : comm_ring (monoid_ring R M) := finsupp.to_comm_ring
+instance : module R (monoid_ring R M) := finsupp.to_module _ _
+instance : has_scalar R (monoid_ring R M) := infer_instance
 
-instance monoid_ring.algebra : algebra R (monoid_ring R M) :=
-{ f := λ r, finsupp.single 0 r,
+protected def algebra : algebra R (monoid_ring R M) :=
+{ to_fun := λ r, finsupp.single 0 r,
   hom :=
   { map_add := λ x y, finsupp.single_add,
     map_mul := λ x y, by rw [finsupp.single_mul_single, zero_add],
-    map_one := rfl } }
+    map_one := rfl },
+  smul_def' := begin
+    intros r x, ext m,
+    rw [finsupp.smul_apply, finsupp.mul_def, finsupp.sum_apply, finsupp.sum_single_index,
+        finsupp.sum_apply, finsupp.sum, finset.sum_eq_single m _ _, zero_add, finsupp.single_eq_same, smul_eq_mul],
+    { intros b _ hbm, rw [zero_add, finsupp.single_eq_of_ne hbm] },
+    { intros hmx, rw [zero_add, finsupp.single_eq_same, finsupp.not_mem_support_iff.1 hmx, mul_zero] },
+    { rw finsupp.sum_apply, refine eq.trans (finset.sum_congr rfl $ λ m hmx, _) finsupp.sum_zero,
+      dsimp only, rw [zero_mul, finsupp.single_zero, finsupp.zero_apply] }
+  end }
 
-class is_add_monoid_monoid_hom {α : Type u} {β : Type v}
-  [add_monoid α] [monoid β] (f : α → β) : Prop :=
-(add : ∀ a b : α, f (a + b) = f a * f b)
-(zero : f 0 = 1)
-
-def monoid_ring.of_monoid (m : M) : monoid_ring R M :=
+def of_monoid (m : M) : monoid_ring R M :=
 finsupp.single m 1
 
-instance monoid_ring.of_monoid.is_add_monoid_monoid_hom :
-  is_add_monoid_monoid_hom (monoid_ring.of_monoid R M) :=
-⟨λ _ _, by dsimp [monoid_ring.of_monoid];
-  rw [finsupp.single_mul_single, mul_one],
-rfl⟩
+instance : is_add_monoid_monoid_hom (monoid_ring.of_monoid R M) :=
+⟨λ m₁ m₂, by unfold of_monoid; rw [finsupp.single_mul_single, mul_one], rfl⟩
 
-def add_monoid_monoid_hom (α : Type u) (β : Type v)
-  [add_monoid α] [monoid β] : Type (max u v) :=
-subtype $ @is_add_monoid_monoid_hom α β _ _
+theorem of_monoid_add (m₁ m₂ : M) : of_monoid R M (m₁ + m₂) = of_monoid R M m₁ * of_monoid R M m₂ :=
+is_add_monoid_monoid_hom.add _ _ _
 
-def monoid_ring.eval (A : Type w) [comm_ring A] [algebra R A]
-  (f : add_monoid_monoid_hom M A) (x : monoid_ring R M) : A :=
-x.sum $ λ m r, r * f.1 m
+theorem of_monoid_zero : of_monoid R M 0 = 1 :=
+is_add_monoid_monoid_hom.zero _
 
-instance monoid_ring.eval.is_alg_hom (A : Type w) [comm_ring A] [algebra R A]
-  (f : add_monoid_monoid_hom M A) : is_alg_hom (monoid_ring.eval R M A f) :=
-have H0 : ∀ m, ↑(0:R) * f.1 m = 0,
-  from λ m, by simp,
-have Hp : ∀ m (r1 r2 : R), ↑(r1+r2:R) * f.1 m = r1 * f.1 m + r2 * f.1 m,
-  from λ m, by simp [add_mul],
-{ map_add := λ x y, finsupp.sum_add_index H0 Hp,
-  map_mul := begin
-      letI : comm_ring (M →₀ R) := monoid_ring.comm_ring R M,
-      intros x y,
-      unfold monoid_ring.eval,
-      apply finsupp.induction x; clear x,
-      { simp [finsupp.mul_def, finsupp.sum_zero_index] },
-      intros m r x h1 h2 ih,
-      rw [add_mul, finsupp.sum_add_index, ih],
-      rw [finsupp.sum_add_index, add_mul],
-      suffices : finsupp.sum (finsupp.single m r * y) (λ (m : M) (r : R), ↑r * f.val m)
-        = ↑r * f.val m * finsupp.sum y (λ (m : M) (r : R), ↑r * f.val m),
-      { rw [this, finsupp.sum_single_index], solve_by_elim },
-      apply finsupp.induction y; clear ih y,
-      { simp [finsupp.mul_def, finsupp.sum_zero_index] },
-      intros n s y h3 h4 ih,
-      rw [mul_add, finsupp.sum_add_index, ih],
-      rw [finsupp.sum_add_index, mul_add],
-      rw [finsupp.single_mul_single],
-      rw [finsupp.sum_single_index],
-      rw [finsupp.sum_single_index],
-      rw [f.2.add, algebra.coe_mul],
-      ac_refl,
-      all_goals { solve_by_elim }
-    end,
-  map_one := by convert finsupp.sum_single_index _;
-    rw [f.2.zero]; simp,
-  commute := λ r, by convert finsupp.sum_single_index _;
-    rw [f.2.zero]; simp; refl }
+variables {R M}
+@[elab_as_eliminator]
+protected theorem induction_on {C : monoid_ring R M → Prop} (z)
+  (H0 : ∀ m, C (of_monoid R M m)) (H1 : ∀ x y, C x → C y → C (x + y))
+  (H2 : ∀ (r : R) x, C x → C (r • x)) : C z :=
+finsupp.induction z (@zero_smul R _ _ _ _ (1 : monoid_ring R M) ▸ H2 0 1 (H0 0)) $ λ m r z _ _ ih,
+have r • of_monoid R M m = finsupp.single m r, by conv_rhs { rw [← mul_one r, ← smul_eq_mul, ← finsupp.smul_single] }; refl,
+H1 (finsupp.single m r) z (this ▸ H2 r (of_monoid R M m) (H0 m)) ih
+variables (R M)
 
-def monoid_ring.of_alg_hom (A : Type w) [comm_ring A] [algebra R A]
-  (f : alg_hom (monoid_ring R M) A) (x : M) : A :=
-f.1 $ finsupp.single x 1
+variables {A : Type w} [comm_ring A] [decidable_eq A] (i : algebra R A)
 
-protected def monoid_ring.UMP (A : Type w) [comm_ring A] [algebra R A] :
-  add_monoid_monoid_hom M A ≃ alg_hom (monoid_ring R M) A :=
-{ to_fun := λ f, ⟨monoid_ring.eval R M A f, by apply_instance⟩,
-  inv_fun := λ f, ⟨λ m, f.1 $ finsupp.single m 1,
-    λ x y, by rw [← is_ring_hom.map_mul f.1, finsupp.single_mul_single, mul_one],
-    is_ring_hom.map_one f.1⟩,
-  left_inv := λ f, subtype.eq $ funext $ λ m,
-    by convert finsupp.sum_single_index _; simp; simp,
-  right_inv := λ f, subtype.eq $ funext $ λ x,
+set_option class.instance_max_depth 100
+def eval (f : M → i.mod) (hf : is_add_monoid_monoid_hom f) : monoid_ring.algebra R M →ₐ i :=
+{ to_fun := λ x, x.sum $ λ m r, (r • f m : i.mod),
+  hom := ⟨by refine (finsupp.sum_single_index _).trans _;
+      simp only [i.smul_def, i.map_zero, i.map_one, is_add_monoid_monoid_hom.zero f]; apply mul_one,
     begin
-      dsimp [monoid_ring.eval],
-      apply finsupp.induction x,
-      { simp [finsupp.sum_zero_index],
-        symmetry, exact is_ring_hom.map_zero f.1 },
-      intros m r x h1 h2 ih,
-      rw [finsupp.sum_add_index, finsupp.sum_single_index, ih],
-      rw [← f.2.commute, ← is_ring_hom.map_mul f.1, is_ring_hom.map_add f.1],
-      congr,
-      convert finsupp.single_mul_single,
-      all_goals { intros, simp [add_mul] }
-    end }
+      intros x y,
+      rw [finsupp.mul_def, finsupp.sum_sum_index, finsupp.sum_mul],
+      refine finset.sum_congr rfl (λ m₁ _, _), dsimp only,
+      rw [finsupp.sum_sum_index, finsupp.mul_sum],
+      refine finset.sum_congr rfl (λ m₂ _, _), dsimp only,
+      rw [finsupp.sum_single_index, is_add_monoid_monoid_hom.add f,
+        algebra.smul_mul, algebra.mul_smul, smul_smul],
+      all_goals { intros, apply zero_smul <|> apply add_smul }
+    end,
+    have H0 : ∀ m, (0 • f m : i.mod) = 0,
+      from λ _, zero_smul _,
+    have Hp : ∀ m (r1 r2 : R), ((r1 + r2) • f m : i.mod) = r1 • f m + r2 • f m,
+      from λ _ _ _, add_smul _ _ _,
+    λ x y, finsupp.sum_add_index H0 Hp⟩,
+  commutes' := λ r, by refine (finsupp.sum_single_index _).trans _;
+    simp only [i.smul_def, i.map_zero, i.map_one, is_add_monoid_monoid_hom.zero f]; apply mul_one }
 
-@[simp] lemma monoid_ring.UMP.to_fun.of_monoid
-  (A : Type w) [comm_ring A] [algebra R A]
-  (f : add_monoid_monoid_hom M A) (m : M) :
-  ((monoid_ring.UMP _ _ _).1 f).1 (monoid_ring.of_monoid _ _ m) = f.1 m :=
-by convert finsupp.sum_single_index _; simp; simp
+theorem eval_of_monoid (f : M → i.mod) (hf) (m) : eval R M i f hf (of_monoid R M m) = f m :=
+by convert finsupp.sum_single_index _; [exact (one_smul _).symm, exact (zero_smul _)]
 
-@[simp] lemma monoid_ring.UMP.symm
-  (A : Type w) [comm_ring A] [algebra R A]
-  (f : alg_hom (monoid_ring R M) A) (m : M) :
-  ((monoid_ring.UMP R M A).symm f).1 m = f.1 (monoid_ring.of_monoid _ _ m) :=
-rfl
+theorem eq_eval (φ : monoid_ring.algebra R M →ₐ i) : φ = eval R M i (λ m, φ (of_monoid R M m))
+  ⟨λ m₁ m₂, by rw [of_monoid_add, φ.map_mul], φ.map_one⟩ :=
+begin
+  ext x,
+  refine monoid_ring.induction_on x (λ m, _) (λ x y ihx ihy, _) (λ r x ih, _),
+  { rw eval_of_monoid },
+  { change _ at ihx, change _ at ihy,
+    rw [φ.map_add, alg_hom.map_add, ihx, ihy] },
+  { change _ at ih,
+    rw [(monoid_ring.algebra R M).smul_def, φ.map_mul, alg_hom.map_mul, φ.commutes, alg_hom.commutes, ih] }
+end
 
-@[simp] lemma monoid_ring.eval.val (A : Type w) [comm_ring A] [algebra R A]
-  (f : add_monoid_monoid_hom M A) (m : M) :
-  monoid_ring.eval R M A f (monoid_ring.of_monoid R M m) = f.1 m :=
-monoid_ring.UMP.to_fun.of_monoid R M A f m
+protected theorem ext (φ₁ φ₂ : monoid_ring.algebra R M →ₐ i)
+  (H : ∀ m, φ₁ (of_monoid R M m) = φ₂ (of_monoid R M m)) : φ₁ = φ₂ :=
+by rw [eq_eval _ _ _ φ₁, eq_eval _ _ _ φ₂]; congr' 1; ext m; apply H
+
+protected def monoid_ring.UMP :
+  add_monoid_monoid_hom M A ≃ alg_hom (monoid_ring.algebra R M) i :=
+{ to_fun := λ f, monoid_ring.eval R M i f.1 f.2,
+  inv_fun := λ f, ⟨λ m, f (of_monoid R M m),
+    λ m₁ m₂, by rw [of_monoid_add, f.map_mul], f.map_one⟩,
+  left_inv := λ f, subtype.eq $ funext $ eval_of_monoid _ _ _ _ f.2,
+  right_inv := λ f, (eq_eval _ _ _ _).symm }
+
+end monoid_ring

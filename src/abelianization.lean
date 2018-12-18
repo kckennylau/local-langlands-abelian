@@ -1,13 +1,10 @@
 -- Hausdorff abelianization, i.e.
 -- quotient by the closure of the commutator
 
-import group_theory.coset
+import group_theory.abelianization
 import .topological_group
-import .quotient_group
 
 universes u v
-
-set_option eqn_compiler.zeta true
 
 theorem list.prod_map {G : Type u} {H : Type v} [group G] [group H]
   (f : G → H) [is_group_hom f] {L : list G} :
@@ -30,7 +27,7 @@ instance commutator_subgroup.subgroup
       let ⟨p, hp, q, hq, h5⟩ := h1 y (list.mem_reverse.1 h3) in
       ⟨q, hq, p, hp, by rw [← h4, h5]; simp [mul_assoc]⟩,
     by rw ← h2; from list.rec_on L (by simp) (λ hd tl ih,
-      by rw [list.reverse_cons', list.map_append, list.prod_append, ih]; simp)⟩ }
+      by rw [list.reverse_cons, list.map_append, list.prod_append, ih]; simp)⟩ }
 
 instance commutator_subgroup.normal_subgroup
   (G : Type u) [group G] (N : set G) [normal_subgroup N] :
@@ -44,53 +41,45 @@ instance commutator_subgroup.normal_subgroup
     by rw ← h2; from list.rec_on L (by simp) (λ hd tl ih,
       by rw [list.map_cons, list.prod_cons, ih]; simp [mul_assoc])⟩ }
 
-def Hausdorff_abelianization (G : Type u) [topological_group G] : Type u :=
-left_cosets (closure (commutator_subgroup G set.univ))
+variables (G : Type u) (H : Type v)
+variables [topological_space G] [group G] [topological_group G]
+variables [topological_space H] [group H] [topological_group H]
 
-def Hausdorff_abelianization.setoid (G : Type u)
-  [topological_group G] : setoid G :=
-left_rel (closure (commutator_subgroup G set.univ))
+def Hausdorff_abelianization : Type u :=
+quotient_group.quotient (closure (commutator_subgroup G set.univ))
 
-local attribute [instance] Hausdorff_abelianization.setoid
-
-instance Hausdorff_abelianization.comm_group (G : Type u)
-  [topological_group G] : comm_group (Hausdorff_abelianization G) :=
-{ mul_comm := λ x y, quotient.induction_on₂ x y $ λ m n,
-    quotient.sound $ subset_closure ⟨[n⁻¹*m⁻¹*n*m],
-      by simp; refine ⟨n⁻¹, m⁻¹, _⟩; simp,
-      by simp [mul_assoc]⟩,
+attribute [elab_as_eliminator] quotient_group.induction_on
+instance Hausdorff_abelianization.comm_group : comm_group (Hausdorff_abelianization G) :=
+{ mul_comm := λ x y, quotient_group.induction_on x $ λ m,
+    quotient_group.induction_on y $ λ n, quotient_group.eq.2 $
+    subset_closure ⟨[n⁻¹*m⁻¹*n*m], list.forall_mem_singleton.2
+      ⟨n⁻¹, trivial, m⁻¹, trivial, by rw [inv_inv, inv_inv]⟩,
+    by rw [list.prod_cons, list.prod_nil, mul_one, mul_inv_rev, ← mul_assoc]⟩,
   .. quotient_group.group _ }
 
-instance Hausdorff_abelianization.topological_group (G : Type u)
-  [topological_group G] : topological_group (Hausdorff_abelianization G) :=
+instance Hausdorff_abelianization.topological_space : topological_space (Hausdorff_abelianization G) :=
+quotient_group.topological_space _ _
+
+instance Hausdorff_abelianization.topological_group : topological_group (Hausdorff_abelianization G) :=
 quotient_group.topological_group _ _
 
-instance Hausdorff_abelianization.topological_space' (G : Type u)
-  [topological_group G] : topological_space (quotient (Hausdorff_abelianization.setoid G)) :=
-(Hausdorff_abelianization.topological_group G).to_topological_space
-
-def Hausdorff_abelianization.induced {G : Type u} {H : Type v}
-  [topological_group G] [topological_group H]
-  (f : G → H) [hf : is_topological_group_hom f] :
+variables {G H}
+def Hausdorff_abelianization.map (f : G → H) [hf : is_topological_group_hom f] :
   Hausdorff_abelianization G → Hausdorff_abelianization H :=
-quotient_group.lift _ (quotient.mk ∘ f) $ λ x hx,
-have H1 : _ := image_closure_subset_closure_image hf.cts
-  ⟨x, hx, rfl⟩,
-eq.symm $ quotient.sound $ show 1⁻¹ * f x ∈ _, by simp;
-  refine closure_mono (λ z H2, _) H1;
-  rcases H2 with ⟨y, ⟨L, h3, h4⟩, h5⟩;
-  refine ⟨L.map f,
-    (λ c h5, let ⟨b, h6, h7⟩ := list.exists_of_mem_map h5 in
-      let ⟨p, _, q, _, h8⟩ := h3 b h6 in
-      ⟨f p, trivial, f q, trivial, by rw [← h7, h8];
-        simp [is_group_hom.mul f, is_group_hom.inv f]⟩),
-    _⟩; simp [list.prod_map f, h4, h5]
+quotient_group.map _ _ f $ (closure_subset_iff_subset_of_is_closed $
+  continuous_iff_is_closed.1 (is_topological_group_hom.cts f) _ is_closed_closure).2 $
+λ x ⟨L, hL, hLx⟩, subset_closure ⟨L.map f,
+  λ c hcfL, let ⟨b, hbL, hfbc⟩ := list.exists_of_mem_map hcfL in
+    let ⟨p, _, q, _, hb⟩ := hL b hbL in
+    ⟨f p, trivial, f q, trivial, by rw [← hfbc, hb];
+      simp only [is_group_hom.mul f, is_group_hom.inv f]⟩,
+  by rw [list.prod_map f, hLx]⟩
 
-def Hausdorff_abelianization.induced.is_topological_group_hom {G : Type u} {H : Type v}
-  [topological_group G] [topological_group H]
+set_option class.instance_max_depth 100
+theorem Hausdorff_abelianization.induced.is_topological_group_hom
   (f : G → H) [hf : is_topological_group_hom f] :
-  is_topological_group_hom (Hausdorff_abelianization.induced f) :=
+  is_topological_group_hom (Hausdorff_abelianization.map f) :=
 { cts := continuous_coinduced_dom $
-    show continuous (quotient.mk ∘ f),
+    show continuous (quotient_group.mk ∘ f),
     from hf.cts.comp continuous_coinduced_rng,
-  .. quotient_group.lift.is_group_hom _ _ _ }
+  .. quotient_group.is_group_hom_quotient_lift _ _ _ }
